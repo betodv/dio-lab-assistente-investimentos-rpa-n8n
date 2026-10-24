@@ -1,0 +1,193 @@
+{
+  "name": "My workflow 5",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Clientes",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        -16
+      ],
+      "id": "c10811af-d8a9-45a7-965f-dce53712ae44",
+      "name": "Webhook",
+      "webhookId": "72d68d62-58f4-44fd-be68-34b2d635a32e"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        864,
+        -48
+      ],
+      "id": "e4b60fae-177b-4d90-9db5-b74fe6047e63",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://digitalinnovationone.github.io/dio-lab-assistente-investimentos-rpa-n8n/data.csv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -64,
+        -16
+      ],
+      "id": "eea92bde-cdbc-4710-abc3-9dfd9898d696",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega o CSV como texto vindo do HTTP Request\nconst csvRaw = $json.data ?? $json.body ?? $json;\n\n// Session:\nconst text = (typeof csvRaw === \"string\") ? csvRaw : JSON.stringify(csvRaw);\n\nconst lines = text.split(/\\r?\\n/).map(l => l.trim()).filter(Boolean);\nconst headers = lines[0].split(\",\").map(h => h.trim());\n\nconst investimentos = lines.slice(1).map(line => {\n  const cols = line.split(\",\").map(c => c.trim());\n  const obj = {};\n\n  headers.forEach((h, i) => obj[h] = cols[i] ?? \"\");\n\n  // normaliza mínimo para número\n  obj.mínimo = Number(String(obj.mínimo).replace(/[^\\d,]/g, \"\")) || 0;\n\n  return obj;\n});\n\nreturn [{ json: { investimentos } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -16
+      ],
+      "id": "949dfef1-63fd-4e17-975a-ec98a81183df",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        272,
+        -192
+      ],
+      "id": "1fa23130-eafe-4462-b6e4-35963aba9cc0",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dicionário com os templates estáticos definidos na Etapa 4\nconst templates = {\n  \"Conservador\": \"Olá {Nome}, seu saldo atual é {Saldo}. Foco em renda fixa e segurança para proteger seu patrimônio.\",\n  \"Moderado\": \"Olá {Nome}, seu saldo atual é {Saldo}. Recomendamos um mix equilibrado entre renda fixa e variável.\",\n  \"Arrojado\": \"Olá {Nome}, seu saldo atual é {Saldo}. Ênfase em ações e maior potencial de retorno para sua carteira.\"\n};\n\n// Processa cada item que chega do nó anterior (ex: planilha ou tabela de clientes)\nreturn $input.all().map(item => {\n  const cliente = item.json;\n  const perfil = cliente.Perfil;\n  \n  // Seleciona o template correspondente ao perfil do cliente\n  let templateEscolhido = templates[perfil] || \"Olá {Nome}, bem-vindo à nossa assessoria financeira!\";\n  \n  // Substitui as tags pelas informações reais do cliente\n  let mensagemEstatica = templateEscolhido\n    .replace(\"{Nome}\", cliente.Nome)\n    .replace(\"{Saldo}\", cliente.Saldo);\n    \n  return {\n    json: {\n      ...cliente,\n      mensagemEstatica: mensagemEstatica,\n      // Propriedade extra útil para facilitar a integração com a IA na Etapa 5\n      promptSugeridoParaIA: `Atue como um Assessor de Investimentos. Escreva uma mensagem comercial humanizada e personalizada para o cliente ${cliente.Nome}, que tem um saldo de ${cliente.Saldo} e perfil ${perfil}.`\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -48
+      ],
+      "id": "5accc9a0-a4e4-4b3a-89a9-e2e639fffe41",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -48
+      ],
+      "id": "263b6d68-bee1-45f2-8a97-bf1b65e288cd",
+      "name": "Code in JavaScript2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4fd4e954-a0ae-4979-9523-24244392a837",
+  "meta": {
+    "instanceId": "00753f5680f92219019694259124dcdccaad80b10bf23c0d131f50bda960c7a9"
+  },
+  "nodeGroups": [],
+  "id": "xPVqK1YCBQ3nyIjl",
+  "tags": []
+}
